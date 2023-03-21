@@ -51,6 +51,8 @@
   タイルの種類は[地理院タイル一覧](https://maps.gsi.go.jp/development/ichiran.html)参照
 
 ## タイルの計算方法
+
+TypeScriptで書いてありますが、引数の型指定だけしか使っていないのでそこを消せばjavascriptとしても動きます
 ### 経度
 
 レベル0のタイル(地球一周256px)を元に、zoomlevelをかけて算出する
