@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0, ,user-scalable=no" />
+  <script type="module">
+    import {calcTileInfo} from './js/elevation.js';
+    // 組み込み関数は変数に代入できないため、アロー関数でラップ
+    const $ = p => document.querySelector(p);
+
+    $('#exec').addEventListener('click', async () => {
+      const lat = $('#lat').value;
+      const lng = $('#lon').value;
+      const zoom = $('#zoom').value;
+      const ds = $('#source').value;
+      // 経度、緯度から標高を求める
+      const ti = calcTileInfo(lat, lng, zoom);
+
+      const dataType = ds.split(',')[0];
+      const ext = ds.split(',')[1];
+
+      const url = `https://cyberjapandata.gsi.go.jp/xyz/${dataType}/${zoom}/${ti.x}/${ti.y}.${ext}`;
+
+      // canvasに画像を表示して、指定座標に●を表示する
+      const board = $('#board');
+      const ctx = board.getContext('2d');
+
+      // 画像は非表示(canvasに表示)
+      const img = $('#imgTile');
+
+      img.onload = () => {
+        // 指定座標にオレンジの点を表示
+        ctx.drawImage(img, 0, 0);
+        ctx.beginPath();
+        ctx.arc(
+          ti.pX,        // 中心点X
+          ti.pY,        // 中心点Y
+          4,            // 半径(radius)
+          0,            // 円の描画開始角度(startAngle)
+          2 * Math.PI,  // 円の描画終了角度(endAngle)
+        );
+        ctx.fillStyle = "Orange";
+        ctx.fill();
+        ctx.stroke();
+      };
+
+      // 画像読み込み
+      img.src = url;
+    });
+  </script>
+  <style>
+    input[type=number] {
+      text-align:right;
+      vertical-align:middle;
+      width:12em;
+    }
+
+  </style>
+</head>
+<body>
+  <h2>指定した(緯度、経度、zoomlevel)から、国土地理院タイルを読み込むサンプル</h2>
+  <div style="margin-left:1em;">
+    <span>緯度</span><input type="number" id="lat" value="35.36072" /> <br>
+    <span>経度</span><input type="number" id="lon" value="138.72743" /> <br>
+    <span>zoom</span><input type="number" id="zoom" style="width: 60px" value="14" />
+    <select id="source">
+      <option value="std,png">標準地図</option>
+      <option value="seamlessphoto,jpg">写真</option>
+    </select>
+    <input type="button" id="exec" value="実行">
+  </div>
+  <div style="margin-left:2em">
+    <canvas id="board" width="256" height="256"></canvas>
+    <img id="imgTile" alt="imgTile" style="display:none" ;>
+  </div>
+  <div style="margin:2em;">
+    <a href="https://maps.gsi.go.jp/development/siyou.html">地理院タイル仕様</a><br>
+    <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a><br>
+  </div>
+</body>
+</html>
