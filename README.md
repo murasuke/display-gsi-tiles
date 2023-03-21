@@ -2,7 +2,20 @@
 
 ## はじめに
 
-[Leaflet](https://leafletjs.com/)など、地図を表示するJavaScriptライブラリを用いると簡単に表示できますが、仕組みを理解するため**あえて**自力でタイルの位置を取得してみます
+[Leaflet](https://leafletjs.com/)など、地図を表示するJavaScriptライブラリを用いると簡単に表示できますが、仕組みを理解するため**あえて**自力で計算してタイルを表示します。
+
+探してみると、計算方法は見つかるのですが、数学が苦手な僕にはちょっと難しい・・・ので、できるだけ分かりやすい式で作りました。
+
+最後に計算結果の確認をするため、富士山山頂の座標(35.36072, 138.72743)をもとに、タイル画像を表示してみます。
+
+  ![富士山](https://cyberjapandata.gsi.go.jp/xyz/std/10/906/404.png)
+
+
+参考ページ
+
+  * [Zenn:メルカトルとは何かを計算式から見る](https://zenn.dev/boiledorange73/articles/0048-mercator-figure)
+  * [Qiita:メルカトル図法](https://qiita.com/Seo-4d696b75/items/aa6adfbfba404fcd65aa)
+  * [wikipedia:メルカトル図法](https://ja.wikipedia.org/wiki/%E3%83%A1%E3%83%AB%E3%82%AB%E3%83%88%E3%83%AB%E5%9B%B3%E6%B3%95)
 
 ## 国土地理院タイルの特徴
 
