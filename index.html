@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0, ,user-scalable=no" />
   <script type="module">
-    import {calcTileInfo} from './js/elevation.js';
+    import {calcTileInfo, loadTile, getElevation} from './js/elevation.js';
     // 組み込み関数は変数に代入できないため、アロー関数でラップ
     const $ = p => document.querySelector(p);
 
@@ -14,27 +14,24 @@
       const zoom = $('#zoom').value;
       const ds = $('#source').value;
       // 経度、緯度から標高を求める
-      const ti = calcTileInfo(lat, lng, zoom);
+      const {x, y, pX, pY} = calcTileInfo(lat, lng, zoom);
 
       const dataType = ds.split(',')[0];
       const ext = ds.split(',')[1];
 
-      const url = `https://cyberjapandata.gsi.go.jp/xyz/${dataType}/${zoom}/${ti.x}/${ti.y}.${ext}`;
+      const img = loadTile(x,y,zoom,{dataType, ext});
 
       // canvasに画像を表示して、指定座標に●を表示する
       const board = $('#board');
       const ctx = board.getContext('2d');
-
-      // 画像は非表示(canvasに表示)
-      const img = $('#imgTile');
 
       img.onload = () => {
         // 指定座標にオレンジの点を表示
         ctx.drawImage(img, 0, 0);
         ctx.beginPath();
         ctx.arc(
-          ti.pX,        // 中心点X
-          ti.pY,        // 中心点Y
+          pX,        // 中心点X
+          pY,        // 中心点Y
           4,            // 半径(radius)
           0,            // 円の描画開始角度(startAngle)
           2 * Math.PI,  // 円の描画終了角度(endAngle)
@@ -44,15 +41,17 @@
         ctx.stroke();
       };
 
-      // 画像読み込み
-      img.src = url;
+      // 標高の取得
+      const h = await getElevation(35.36072, 138.72743);
+      console.log(h);
+      $('#elevation').innerText = h;
     });
   </script>
   <style>
     input[type=number] {
       text-align:right;
       vertical-align:middle;
-      width:12em;
+      width:8em;
     }
 
   </style>
@@ -71,7 +70,9 @@
   </div>
   <div style="margin-left:2em">
     <canvas id="board" width="256" height="256"></canvas>
-    <img id="imgTile" alt="imgTile" style="display:none" ;>
+  </div>
+  <div style="margin-left:2em">
+    標高：<span id="elevation"></span>m
   </div>
   <div style="margin:2em;">
     <a href="https://maps.gsi.go.jp/development/siyou.html">地理院タイル仕様</a><br>

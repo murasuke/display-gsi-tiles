@@ -147,6 +147,7 @@ export const calcCoordY = (lat: number, z: number) => {
 };
 ```
 
+
 ### 上記を元にタイルの位置を求める
 
 * データID(地図の種類): std
@@ -169,7 +170,15 @@ export const calcCoordY = (lat: number, z: number) => {
 
 ### 標高タイルについて
 
-[標高タイルのデータ仕様](https://maps.gsi.go.jp/development/demtile.html)から引用
+標高タイルは画素の色情報から、標高を計算できる特別なタイルです。
+
+* https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/10/906/404.png
+  ![富士山](https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/10/906/404.png)
+
+`dem5a`は0.3m以内という高い精度を持ちますが、データが存在しない場合があります(富士山右上の茶色の部分)
+
+
+* 仕様について[標高タイルのデータ仕様](https://maps.gsi.go.jp/development/demtile.html)から引用
 ```
 24ビットカラーのPNG形式で、一つのタイルの大きさは256ピクセル×256ピクセルです。テキスト形式の標高タイルより、データサイズが小さいという特徴があります。
 ピクセルの画素値（RGB値）から、当該ピクセル座標の標高値が算出できます。
@@ -182,11 +191,127 @@ x = 2^23の場合　h = NA
 x > 2^23の場合　h = (x-2^24)u
 uは標高分解能（0.01m）を表します。また、無効値（標高タイル（テキスト形式）の「e」に該当する箇所）は(R, G, B)=(128, 0, 0)です。
 ```
+* `^`は累乗
 
-* uは標高分解能（0.01m）
-* (R, G, B)=(128, 0, 0) の場合
-  * R = 128 = 2^7
-  * x = 2^16 * 2^7 = 2^23 なので、NA(無効値)
+### 標高の取得手順
 
-* (R, G, B)=(127, 127, 127) の場合
+まず、上記で作成した関数をもとに、タイルの座標計算と、画像を読み込むユーティリティー関数を作成します
 
+```typescript
+/**
+ * 指定位置に該当するタイル位置と、該当タイル内の位置を返す
+ * @param lat 緯度
+ * @param lng 経度
+ * @param z zoomlevel
+ * @returns
+ */
+export const calcTileInfo = (lat: number, lng: number, z: number) => {
+  // (x, y): 指定位置に該当するタイル位置
+  // (pX, pY): 該当タイル内の位置
+  const coordX = calcCoordX(lng, z);
+  const coordY = calcCoordY(lat, z);
+  return {
+    x: coordX.tileCoordX,
+    y: coordY.tileCoordY,
+    pX: coordX.imagePosX,
+    pY: coordY.imagePosY,
+    z,
+  };
+};
+
+
+/**
+ * タイルを読み込みHTMLImageElementを返す
+ *
+ * @param x
+ * @param y
+ * @param z
+ * @param option
+ * @returns
+ */
+export const loadTile = (
+  x: number,
+  y: number,
+  z: number,
+  option: { dataType: string; ext?: string }
+) => {
+  const { dataType, ext } = option;
+
+  const url = `https://cyberjapandata.gsi.go.jp/xyz/${dataType}/${z}/${x}/${y}.${
+    ext ?? 'png'
+  }`;
+  const img = new Image();
+  img.setAttribute('crossorigin', 'anonymous');
+  img.src = url;
+  return img;
+};
+```
+
+* dem5aから標高を取得
+
+次に、標高タイルを読み込み、指定座標から標高を計算して返す関数を作成します
+
+1. `calcTileInfo()`でタイルとタイル内の座標を計算する
+1. `loadTile()`でタイルを読み込む&lt;img&gt;タグを準備する
+1. タイルを描画するcanvasを作成する(描画後に色を取得するため)
+1. `img.onloadイベント`で読み込んだ画像から、該当位置の色情報を取得し、標高に換算する
+
+```typescript
+/**
+ * dem5aから標高を取得
+ * @param lat
+ * @param lng
+ */
+export const getElevation = async (
+  lat: number,
+  lng: number
+): Promise<number> => {
+  const z = 15;
+
+  // 描画用のCanvasを用意する
+  const canvas = document.createElement('canvas');
+  [canvas.width, canvas.height] = [256, 256];
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  // タイルを取得
+  const { x, y, pX, pY } = calcTileInfo(lat, lng, z);
+  // タイルを読み込む<img>タグを作成
+  const img = loadTile(x, y, z, { dataType: 'dem5a_png' });
+
+  // onloadは非同期で発生するため、Promise()でラップして返す
+  return new Promise((resolve, reject) => {
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      // ピクセルカラー配列を取得
+      const { data } = ctx.getImageData(0, 0, 256, 256);
+      // 1pxあたり4Byte(RGBA)
+      const idx = pY * 256 * 4 + pX * 4;
+      const r = data[idx + 0];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+
+      // 標高に換算
+      let h: number | undefined = undefined;
+      const resolution = 0.01; // 分解能
+
+      // 定義に従い計算
+      // x = 2^16R + 2^8G + B
+      // x < 2^23の場合　h = xu
+      // x = 2^23の場合　h = NA
+      // x > 2^23の場合　h = (x-2^24)u
+      // uは標高分解能（0.01m）
+      const x = r * 2 ** 16 + g * 2 ** 8 + b;
+      if (x < 2 ** 23) {
+        h = x * resolution;
+      } else if (x == 2 ** 23) {
+        h = undefined;
+      } else if (x > 2 ** 23) {
+        h = x - 2 ** 24 * resolution;
+      }
+
+      resolve(h);
+    };
+  });
+};
+
+```
