@@ -177,6 +177,9 @@ export const calcCoordY = (lat: number, z: number) => {
 
 `dem5a`は0.3m以内という高い精度を持ちますが、データが存在しない場合があります(富士山右上の茶色の部分)
 
+* データが存在しない場合は、精度を落としたタイル(DEM5B, DEM5C, DEM10B, DEMGM)を利用することもできる
+
+
 
 * 仕様について[標高タイルのデータ仕様](https://maps.gsi.go.jp/development/demtile.html)から引用
 ```
@@ -313,5 +316,18 @@ export const getElevation = async (
     };
   });
 };
-
 ```
+
+
+### 動作確認
+
+富士山頂の座標を指定して実行してみます(山頂からちょっとずれているようです)
+
+```javascript
+  // 標高の取得
+  const h = await getElevation(35.36072, 138.72743);
+  console.log(h); // 3764.73
+```
+
+### 出典
+[地理院タイル](https://maps.gsi.go.jp/development/ichiran.html)
